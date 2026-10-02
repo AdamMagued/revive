@@ -75,4 +75,28 @@ func uselessFallthrough() {
 		println()
 	}
 
+	switch a {
+	case 0:
+		switch b {
+		case 0:
+			fallthrough // MATCH /this "fallthrough" can be removed by consolidating this case clause with the next one/
+		case 1:
+			println()
+		default:
+		}
+	default:
+	}
+
+	switch a {
+	case 0:
+		println()
+		switch b {
+		case 0:
+			fallthrough // MATCH /this "fallthrough" can be removed by consolidating this case clause with the next one/
+		case 1:
+			println()
+		}
+	case 1:
+		println()
+	}
 }
