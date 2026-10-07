@@ -78,7 +78,9 @@ type lintMaxPublicStructs struct {
 
 func (w *lintMaxPublicStructs) Visit(n ast.Node) ast.Visitor {
 	if v, ok := n.(*ast.TypeSpec); ok && ast.IsExported(v.Name.Name) {
-		w.current++
+		if _, ok := v.Type.(*ast.StructType); ok {
+			w.current++
+		}
 	}
 	return w
 }

@@ -22,3 +22,11 @@ type αlpha struct {
 
 type _foo struct {
 }
+
+type Reader interface {
+	Read() error
+}
+
+type NamedInt int
+
+type Callback func()
