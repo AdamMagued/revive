@@ -45,7 +45,7 @@ are the canonical examples; [`AGENTS.md`](../../AGENTS.md) §4 points here.
   Bundle-level defaults live in `defaults.toml` / `revive.toml`.
 - `Configure` resets every configurable field to its default **before** reading the arguments. Rules in `allRules` are singletons and
   `GetLintingRules` may call `Configure` on the same instance more than once, so an option omitted in a later call must not keep
-  the value set by an earlier one. Three recurring mistakes break this (see issues #1832, #1836, #1838, #1840, #1844, #1848, #1850, #1852, #1854):
+  the value set by an earlier one.
 
   ```golang
   func (r *SomeRule) Configure(arguments lint.Arguments) error {
