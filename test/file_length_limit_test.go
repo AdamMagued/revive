@@ -39,5 +39,8 @@ func TestFileLengthLimitConfigureResetsPreviousOptions(t *testing.T) {
 	testRule(t, "file_length_limit_4_skip_comments_skip_blank", r, &lint.RuleConfig{
 		Arguments: lint.Arguments{map[string]any{"max": int64(4), "skipComments": true, "skipBlankLines": true}},
 	})
+testRule(t, "file_length_limit_9", r, &lint.RuleConfig{
+		Arguments: lint.Arguments{map[string]any{"max": int64(9)}},
+	})
 	testRule(t, "file_length_limit_disabled", r)
 }
