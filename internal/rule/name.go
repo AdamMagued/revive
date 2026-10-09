@@ -52,7 +52,7 @@ var commonInitialisms = map[string]bool{
 }
 
 // Name returns a different name of struct, var, const, or function if it should be different.
-func Name(name string, allowlist, blocklist []string, skipInitialismNameChecks bool) (should string) {
+func Name(name string, allowlist, blocklist []string, skipInitialismNameChecks, initialismsAsWords bool) (should string) {
 	// Fast path for simple cases: "_" and all lowercase.
 	if name == "_" {
 		return name
@@ -68,7 +68,17 @@ func Name(name string, allowlist, blocklist []string, skipInitialismNameChecks b
 		return name
 	}
 
-	// Split camelCase at any lower->upper transition, and split on underscores.
+	ignoreInitWarnings := make(map[string]bool, len(allowlist))
+	for _, a := range allowlist {
+		ignoreInitWarnings[a] = true
+	}
+
+	extraInits := make(map[string]bool, len(blocklist))
+	for _, b := range blocklist {
+		extraInits[b] = true
+	}
+
+	// Split camelCase at any lower->upper transition, at uppercase run transitions, and split on underscores.
 	// Check each word for common initialisms.
 	runes := []rune(name)
 	w, i := 0, 0 // index of start of word, scan
@@ -95,6 +105,9 @@ func Name(name string, allowlist, blocklist []string, skipInitialismNameChecks b
 		case unicode.IsLower(runes[i]) && !unicode.IsLower(runes[i+1]):
 			// lower->non-lower
 			eow = true
+		case i > w && unicode.IsUpper(runes[i]) && i+2 < len(runes) && unicode.IsUpper(runes[i+1]) && unicode.IsLower(runes[i+2]):
+			// upper->upper->lower (e.g. HTTPMethod: HTTP ends at P, Method starts at M)
+			eow = true
 		}
 		i++
 		if !eow {
@@ -103,31 +116,53 @@ func Name(name string, allowlist, blocklist []string, skipInitialismNameChecks b
 
 		// [w,i) is a word.
 		word := string(runes[w:i])
-		ignoreInitWarnings := map[string]bool{}
-		for _, i := range allowlist {
-			ignoreInitWarnings[i] = true
-		}
 
-		extraInits := map[string]bool{}
-		for _, i := range blocklist {
-			extraInits[i] = true
-		}
-
-		if u := strings.ToUpper(word); !skipInitialismNameChecks && (commonInitialisms[u] || extraInits[u]) && !ignoreInitWarnings[u] {
-			// Keep consistent case, which is lowercase only at the start.
-			if w == 0 && unicode.IsLower(runes[w]) {
-				u = strings.ToLower(u)
+		u := strings.ToUpper(word)
+		if skipInitialismNameChecks {
+			if w > 0 && strings.ToLower(word) == word {
+				runes[w] = unicode.ToUpper(runes[w])
 			}
-			// Keep lowercase s for IDs
-			if u == "IDS" {
-				u = "IDs"
+		} else if !initialismsAsWords {
+			if (commonInitialisms[u] || extraInits[u]) && !ignoreInitWarnings[u] {
+				// Keep consistent case, which is lowercase only at the start.
+				if w == 0 && unicode.IsLower(runes[w]) {
+					u = strings.ToLower(u)
+				}
+				// Keep lowercase s for IDs
+				if u == "IDS" {
+					u = "IDs"
+				}
+				// All the common initialisms are ASCII,
+				// so we can replace the bytes exactly.
+				copy(runes[w:], []rune(u))
+			} else if w > 0 && strings.ToLower(word) == word {
+				// already all lowercase, and not the first word, so uppercase the first character.
+				runes[w] = unicode.ToUpper(runes[w])
 			}
-			// All the common initialisms are ASCII,
-			// so we can replace the bytes exactly.
-			copy(runes[w:], []rune(u))
-		} else if w > 0 && strings.ToLower(word) == word {
-			// already all lowercase, and not the first word, so uppercase the first character.
-			runes[w] = unicode.ToUpper(runes[w])
+		} else {
+			if extraInits[u] && !ignoreInitWarnings[u] {
+				// Blocklist entries are enforced as standard initialisms
+				if w == 0 && unicode.IsLower(runes[w]) {
+					u = strings.ToLower(u)
+				}
+				if u == "IDS" {
+					u = "IDs"
+				}
+				copy(runes[w:], []rune(u))
+			} else if !ignoreInitWarnings[u] {
+				if w == 0 {
+					if unicode.IsUpper(runes[w]) {
+						for k := w + 1; k < i; k++ {
+							runes[k] = unicode.ToLower(runes[k])
+						}
+					}
+				} else {
+					runes[w] = unicode.ToUpper(runes[w])
+					for k := w + 1; k < i; k++ {
+						runes[k] = unicode.ToLower(runes[k])
+					}
+				}
+			}
 		}
 		w = i
 	}
