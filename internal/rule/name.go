@@ -116,55 +116,61 @@ func Name(name string, allowlist, blocklist []string, skipInitialismNameChecks, 
 
 		// [w,i) is a word.
 		word := string(runes[w:i])
-
 		u := strings.ToUpper(word)
-		if skipInitialismNameChecks {
+
+		switch {
+		case skipInitialismNameChecks:
 			if w > 0 && strings.ToLower(word) == word {
 				runes[w] = unicode.ToUpper(runes[w])
 			}
-		} else if !initialismsAsWords {
+		case !initialismsAsWords:
 			if (commonInitialisms[u] || extraInits[u]) && !ignoreInitWarnings[u] {
-				// Keep consistent case, which is lowercase only at the start.
-				if w == 0 && unicode.IsLower(runes[w]) {
-					u = strings.ToLower(u)
-				}
-				// Keep lowercase s for IDs
-				if u == "IDS" {
-					u = "IDs"
-				}
-				// All the common initialisms are ASCII,
-				// so we can replace the bytes exactly.
-				copy(runes[w:], []rune(u))
+				formatStandardInitialism(runes, w, u)
 			} else if w > 0 && strings.ToLower(word) == word {
 				// already all lowercase, and not the first word, so uppercase the first character.
 				runes[w] = unicode.ToUpper(runes[w])
 			}
-		} else {
-			if extraInits[u] && !ignoreInitWarnings[u] {
-				// Blocklist entries are enforced as standard initialisms
-				if w == 0 && unicode.IsLower(runes[w]) {
-					u = strings.ToLower(u)
-				}
-				if u == "IDS" {
-					u = "IDs"
-				}
-				copy(runes[w:], []rune(u))
-			} else if !ignoreInitWarnings[u] {
-				if w == 0 {
-					if unicode.IsUpper(runes[w]) {
-						for k := w + 1; k < i; k++ {
-							runes[k] = unicode.ToLower(runes[k])
-						}
-					}
-				} else {
-					runes[w] = unicode.ToUpper(runes[w])
-					for k := w + 1; k < i; k++ {
-						runes[k] = unicode.ToLower(runes[k])
-					}
-				}
-			}
+		default:
+			applyInitialismsAsWords(runes, w, i, u, extraInits, ignoreInitWarnings)
 		}
 		w = i
 	}
 	return string(runes)
+}
+
+func formatStandardInitialism(runes []rune, w int, u string) {
+	// Keep consistent case, which is lowercase only at the start.
+	if w == 0 && unicode.IsLower(runes[w]) {
+		u = strings.ToLower(u)
+	}
+	// Keep lowercase s for IDs
+	if u == "IDS" {
+		u = "IDs"
+	}
+	// All the common initialisms are ASCII,
+	// so we can replace the bytes exactly.
+	copy(runes[w:], []rune(u))
+}
+
+func toWordCase(runes []rune, w, i int) {
+	if w > 0 {
+		runes[w] = unicode.ToUpper(runes[w])
+	} else if !unicode.IsUpper(runes[w]) {
+		return
+	}
+	for k := w + 1; k < i; k++ {
+		runes[k] = unicode.ToLower(runes[k])
+	}
+}
+
+func applyInitialismsAsWords(runes []rune, w, i int, u string, extraInits, ignoreInitWarnings map[string]bool) {
+	if ignoreInitWarnings[u] {
+		return
+	}
+	if extraInits[u] {
+		// Blocklist entries are enforced as standard initialisms
+		formatStandardInitialism(runes, w, u)
+		return
+	}
+	toWordCase(runes, w, i)
 }
